@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Space Mining Tycoon with Spaceships</title>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    // Create PixiJS application
+    const app = new PIXI.Application({ width: 800, height: 600 });
+    document.body.appendChild(app.view);
+
+    // Load assets
+    const spaceTexture = PIXI.Texture.from('https://www.krqe.com/wp-content/uploads/sites/12/2022/12/AdobeStock_81556974.jpeg?w=2560&h=1440&crop=1'); // Space background
+    const planetTexture = PIXI.Texture.from('https://www.google.com/url?sa=i&url=https%3A%2F%2Fpngtree.com%2Fso%2Fcartoon-planet&psig=AOvVaw2SRrtz3XCUSHaBySuKaC-H&ust=1728335612580000&source=images&cd=vfe&opi=89978449&ved=0CBMQjRxqFwoTCKC5zITW-ogDFQAAAAAdAAAAABAE'); // Planet sprite
+    const asteroidTexture = PIXI.Texture.from('https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.pngwing.com%2Fen%2Fsearch%3Fq%3Dasteroid&psig=AOvVaw2uLbXhV_Q1-0PU6auP9Ecr&ust=1728335642900000&source=images&cd=vfe&opi=89978449&ved=0CBMQjRxqFwoTCLDz_JLW-ogDFQAAAAAdAAAAABAE'); // Asteroid sprite
+    const spaceshipTexture = PIXI.Texture.from('https://e7.pngegg.com/pngimages/316/651/png-clipart-gray-and-blue-spacecraft-sprite-space-shuttle-story-spacecraft-2d-computer-graphics-ship-space-craft-3d-computer-graphics-symmetry.png'); // Spaceship sprite
+
+    // Variables
+    let resources = 0;
+    let idleMiningRate = 1;
+    let upgradeCost = 100;
+    let spaceshipCost = 200;
+    let nextPlanetUnlocked = false;
+    let spaceships = []; // List of all owned spaceships
+
+    // Create background
+    const background = new PIXI.Sprite(spaceTexture);
+    background.width = app.screen.width;
+    background.height = app.screen.height;
+    app.stage.addChild(background);
+
+    // Create planet for mining
+    const planet = new PIXI.Sprite(planetTexture);
+    planet.x = 200;
+    planet.y = 300;
+    planet.anchor.set(0.5);
+    planet.scale.set(0.5);
+    planet.interactive = true;
+    planet.buttonMode = true;
+    app.stage.addChild(planet);
+
+    // Create asteroid (locked initially)
+    const asteroid = new PIXI.Sprite(asteroidTexture);
+    asteroid.x = 600;
+    asteroid.y = 300;
+    asteroid.anchor.set(0.5);
+    asteroid.scale.set(0.5);
+    asteroid.interactive = true;
+    asteroid.buttonMode = true;
+    asteroid.visible = false;  // Initially hidden
+    app.stage.addChild(asteroid);
+
+    // HUD: Resource display
+    const resourceText = new PIXI.Text(`Resources: ${resources}`, { fontSize: 24, fill: '#ffffff' });
+    resourceText.x = 10;
+    resourceText.y = 10;
+    app.stage.addChild(resourceText);
+
+    // HUD: Upgrade button
+    const upgradeButton = new PIXI.Text(`Upgrade (Cost: ${upgradeCost})`, { fontSize: 24, fill: '#00ff00' });
+    upgradeButton.x = 10;
+    upgradeButton.y = 50;
+    upgradeButton.interactive = true;
+    upgradeButton.buttonMode = true;
+    app.stage.addChild(upgradeButton);
+
+    // HUD: Buy spaceship button
+    const spaceshipButton = new PIXI.Text(`Buy Spaceship (Cost: ${spaceshipCost})`, { fontSize: 24, fill: '#00ff00' });
+    spaceshipButton.x = 10;
+    spaceshipButton.y = 90;
+    spaceshipButton.interactive = true;
+    spaceshipButton.buttonMode = true;
+    app.stage.addChild(spaceshipButton);
+
+    // Event Listeners
+    planet.on('pointerdown', mineResources);  // Click to mine resources
+    asteroid.on('pointerdown', mineAsteroid); // Click to mine asteroid
+    upgradeButton.on('pointerdown', buyUpgrade); // Click to buy upgrade
+    spaceshipButton.on('pointerdown', buySpaceship); // Click to buy spaceship
+
+    // Functions
+    function mineResources() {
+        resources += 10; // Click reward
+        updateResourceDisplay();
+    }
+
+    function mineAsteroid() {
+        resources += 20; // Asteroid gives more resources
+        updateResourceDisplay();
+    }
+
+    function updateResourceDisplay() {
+        resourceText.text = `Resources: ${resources}`;
+    }
+
+    function buyUpgrade() {
+        if (resources >= upgradeCost) {
+            resources -= upgradeCost;
+            idleMiningRate += 1;
+            upgradeCost *= 2;
+            upgradeButton.text = `Upgrade (Cost: ${upgradeCost})`;
+            updateResourceDisplay();
+        }
+    }
+
+    // Function to buy a spaceship
+    function buySpaceship() {
+        if (resources >= spaceshipCost) {
+            resources -= spaceshipCost;
+            spaceshipCost *= 2;
+            spaceshipButton.text = `Buy Spaceship (Cost: ${spaceshipCost})`;
+
+            // Create a new spaceship and send it to the planet
+            const spaceship = createSpaceship();
+            spaceships.push(spaceship);
+            app.stage.addChild(spaceship.sprite);
+
+            updateResourceDisplay();
+        }
+    }
+
+    // Create a spaceship
+    function createSpaceship() {
+        const sprite = new PIXI.Sprite(spaceshipTexture);
+        sprite.x = 800;  // Start off-screen
+        sprite.y = Math.random() * 600;  // Random Y position
+        sprite.anchor.set(0.5);
+        sprite.scale.set(0.2);
+
+        // Spaceship object with its properties
+        return {
+            sprite: sprite,
+            miningRate: 5,  // Resources per second
+            moveToPlanet: function () {
+                app.ticker.add(() => {
+                    if (sprite.x > planet.x) {
+                        sprite.x -= 2;  // Move toward the planet
+                    }
+                });
+            }
+        };
+    }
+
+    // Move all spaceships towards the planet and collect resources
+    function updateSpaceships() {
+        spaceships.forEach(ship => {
+            ship.moveToPlanet();  // Move each spaceship toward the planet
+        });
+
+        setInterval(() => {
+            spaceships.forEach(ship => {
+                resources += ship.miningRate;  // Spaceships generate resources
+            });
+            updateResourceDisplay();
+        }, 1000);  // Every second
+    }
+
+    // Idle Mining
+    setInterval(() => {
+        resources += idleMiningRate;
+        updateResourceDisplay();
+        checkForUnlocks();
+    }, 1000);  // Idle mining every second
+
+    // Unlock asteroid after collecting 500 resources
+    function checkForUnlocks() {
+        if (resources >= 500 && !nextPlanetUnlocked) {
+            unlockAsteroid();
+            nextPlanetUnlocked = true;
+        }
+    }
+
+    function unlockAsteroid() {
+        asteroid.visible = true;
+    }
+
+    // Load game state from localStorage
+    function loadGameState() {
+        resources = parseInt(localStorage.getItem('resources') || 0);
+        idleMiningRate = parseInt(localStorage.getItem('idleMiningRate') || 1);
+        upgradeCost = parseInt(localStorage.getItem('upgradeCost') || 100);
+        spaceshipCost = parseInt(localStorage.getItem('spaceshipCost') || 200);
+        nextPlanetUnlocked = JSON.parse(localStorage.getItem('nextPlanetUnlocked') || false);
+
+        updateResourceDisplay();
+        upgradeButton.text = `Upgrade (Cost: ${upgradeCost})`;
+        spaceshipButton.text = `Buy Spaceship (Cost: ${spaceshipCost})`;
+
+        if (nextPlanetUnlocked) {
+            unlockAsteroid();
+        }
+    }
+
+    // Save game state to localStorage
+    window.addEventListener('beforeunload', () => {
+        localStorage.setItem('resources', resources);
+        localStorage.setItem('idleMiningRate', idleMiningRate);
+        localStorage.setItem('upgradeCost', upgradeCost);
+        localStorage.setItem('spaceshipCost', spaceshipCost);
+        localStorage.setItem('nextPlanetUnlocked', nextPlanetUnlocked);
+    });
+
+    // Load the saved game state when the game starts
+    loadGameState();
+
+    // Start spaceship update loop
+    updateSpaceships();
+</script>
+
+</body>
+</html>
